@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Walid's URL Cleaner</title>
+    <style>
+        :root {
+            /* Color Palette */
+            --bg-color: #f0f4f8;
+            --card-bg: #ffffff;
+            --primary-blue: #2563eb;
+            --primary-hover: #1d4ed8;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --success: #10b981;
+            --error: #ef4444;
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background: var(--card-bg);
+            padding: 40px 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05), 0 4px 6px rgba(0, 0, 0, 0.02);
+            text-align: center;
+            width: 100%;
+            max-width: 550px;
+            transition: all 0.3s ease;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            color: var(--primary-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 30px;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 25px;
+        }
+
+        input {
+            width: 100%;
+            padding: 16px 20px;
+            font-size: 16px;
+            background-color: #f8fafc;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+            color: var(--text-main);
+        }
+
+        input:focus {
+            border-color: var(--primary-blue);
+            background-color: var(--card-bg);
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+        }
+
+        input::placeholder {
+            color: #94a3b8;
+        }
+
+        /* Success & Error States for Input */
+        input.success { border-color: var(--success); background-color: #f0fdf4; }
+        input.error { border-color: var(--error); background-color: #fef2f2; }
+
+        .btn {
+            background-color: var(--primary-blue);
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+
+        .btn:hover { background-color: var(--primary-hover); }
+        .btn:active { transform: scale(0.98); }
+
+        .status {
+            margin-top: 20px;
+            font-size: 14px;
+            min-height: 45px;
+            word-break: break-all;
+            color: var(--text-muted);
+        }
+
+        .fallback-link {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 10px 20px;
+            background-color: var(--success);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 480px) {
+            .container { padding: 30px 20px; }
+            h1 { font-size: 24px; }
+            input { padding: 14px 16px; font-size: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+            </svg>
+            Walid's URL Cleaner
+        </h1>
+        <p class="subtitle">Bypass wrappers and strip tracking parameters instantly.<br>Paste a link to auto-clean and open.</p>
+        
+        <div class="input-group">
+            <input type="text" id="urlInput" placeholder="Paste tracked URL here..." autocomplete="off">
+        </div>
+
+        <button class="btn" onclick="processUrl()" id="actionBtn">Clean URL</button>
+        
+        <div class="status" id="statusText">Waiting for a URL...</div>
+    </div>
+
+    <script>
+        const trackersToRemove = [
+            'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 
+            'mc_cid', 'mc_eid', 'igshid', 'fbclid', 'gclid', '_bta_tid', '_bta_c'
+        ];
+
+        function processUrl() {
+            const inputField = document.getElementById('urlInput');
+            const statusText = document.getElementById('statusText');
+            let rawUrl = inputField.value.trim();
+
+            // Reset UI
+            inputField.classList.remove('success', 'error');
+            statusText.innerHTML = 'Processing...';
+            statusText.style.color = 'var(--text-muted)';
+
+            if (!rawUrl) {
+                statusText.innerHTML = 'Waiting for a URL...';
+                return;
+            }
+
+            try {
+                let targetUrlStr = rawUrl;
+
+                // 1. EXTRACT HIDDEN URLS (Bypass wrappers like TLDR)
+                let parts = rawUrl.split('/');
+                for (let part of parts) {
+                    if (part.includes('http:%2F%2F') || part.includes('https:%2F%2F') || 
+                        part.includes('http%3A%2F%2F') || part.includes('https%3A%2F%2F')) {
+                        targetUrlStr = decodeURIComponent(part);
+                        break;
+                    }
+                }
+
+                // 2. CLEAN THE URL
+                let url = new URL(targetUrlStr);
+
+                trackersToRemove.forEach(param => {
+                    url.searchParams.delete(param);
+                });
+
+                const cleanUrl = url.toString();
+
+                // Update UI to Success
+                inputField.classList.add('success');
+                statusText.innerHTML = `<strong>Cleaned Successfully!</strong><br>Opening in new tab...`;
+                statusText.style.color = 'var(--success)';
+
+                // 3. ATTEMPT TO OPEN
+                const newWindow = window.open(cleanUrl, '_blank');
+
+                // 4. FALLBACK FOR POP-UP BLOCKERS (Crucial for mobile Safari/Chrome)
+                if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+                    statusText.innerHTML = `<strong>Pop-up blocked by browser.</strong><br>
+                    <a href="${cleanUrl}" target="_blank" class="fallback-link">Open Cleaned Link</a>`;
+                } else {
+                    // Reset automatically only if it opened successfully
+                    setTimeout(() => {
+                        inputField.value = '';
+                        inputField.classList.remove('success');
+                        statusText.innerHTML = 'Waiting for a URL...';
+                        statusText.style.color = 'var(--text-muted)';
+                    }, 2500);
+                }
+
+            } catch (e) {
+                inputField.classList.add('error');
+                statusText.innerHTML = `<strong>Error:</strong> Invalid URL detected.`;
+                statusText.style.color = 'var(--error)';
+            }
+        }
+
+        // Auto-process on paste
+        document.getElementById('urlInput').addEventListener('paste', () => {
+            setTimeout(processUrl, 100);
+        });
+
+        // Auto-process on Enter key
+        document.getElementById('urlInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                processUrl();
+            }
+        });
+    </script>
+</body>
+</html>
